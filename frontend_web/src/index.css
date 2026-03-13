@@ -1,0 +1,44 @@
+@import "tailwindcss";
+
+@theme {
+  --color-aurora-bg: #0B0F19; /* Deep obsidian gray-900 equivalent */
+  --color-aurora-panel: rgba(255, 255, 255, 0.05); /* Glass panel */
+  --color-aurora-border: rgba(255, 255, 255, 0.1); /* Subtle glass edge */
+  
+  --color-aurora-text-main: #F3F4F6; /* text-gray-100 */
+  --color-aurora-text-light: #9CA3AF; /* text-gray-400 */
+  
+  --color-magenta-glow: #D946EF; /* fuchsia-500 */
+  --color-cyan-glow: #06B6D4; /* cyan-500 */
+  --color-purple-glow: #8B5CF6; /* violet-500 */
+}
+
+body {
+    background-color: var(--color-aurora-bg);
+    color: var(--color-aurora-text-main);
+    font-family: 'Inter', system-ui, -apple-system, sans-serif;
+    transition: background-color 0.5s ease;
+    overflow-x: hidden;
+}
+
+/* Custom Scrollbar for Aurora Glass theme */
+::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+}
+::-webkit-scrollbar-track {
+    background: transparent;
+}
+::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.2);
+    border-radius: 8px;
+    transition: background 0.3s;
+}
+::-webkit-scrollbar-thumb:hover {
+    background: rgba(255, 255, 255, 0.4);
+}
+
+/* Base interactive defaults */
+input, select, textarea, button {
+  font-family: inherit;
+}

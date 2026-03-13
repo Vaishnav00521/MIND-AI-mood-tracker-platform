@@ -1,0 +1,38 @@
+# Environments
+venv/
+env/
+.venv/
+.env
+
+# Android
+.gradle/
+app/build/
+build/
+local.properties
+
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Node
+node_modules/
+dist/
+build/
+.npm/
+
+# IDE/OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# Data & ML
+data/
+models/
+*.h5
+*.pkl
+mlruns/
