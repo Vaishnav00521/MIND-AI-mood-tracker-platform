@@ -1,0 +1,66 @@
+# Doppler Configuration for MindAI Backend
+# =========================================
+# This file configures Doppler secrets injection for the Django backend
+
+setup:
+  # Project configuration
+  project: mindai
+  config: dev
+  
+  # Environment variables to inject
+  # These will be available to the application
+  
+secrets:
+  # Django Security
+  - name: SECRET_KEY
+    required: true
+    description: Django secret key for session signing and cryptographic operations
+    
+  - name: DEBUG
+    value: "True"
+    description: Django debug mode
+    
+  - name: ALLOWED_HOSTS
+    value: "localhost,127.0.0.1"
+    description: Allowed hosts for Django
+    
+  # Database Configuration (PostgreSQL)
+  - name: DB_NAME
+    description: PostgreSQL database name
+  - name: DB_USER
+    description: PostgreSQL username
+  - name: DB_PASSWORD
+    description: PostgreSQL password
+  - name: DB_HOST
+    value: "localhost"
+    description: PostgreSQL host
+  - name: DB_PORT
+    value: "5432"
+    description: PostgreSQL port
+  - name: DB_SSL_MODE
+    value: "disable"
+    description: PostgreSQL SSL mode
+    
+  # AI API Keys
+  - name: GEMINI_API_KEY
+    description: Google Gemini API key for AI features
+    
+  # Spotify API
+  - name: SPOTIFY_CLIENT_ID
+    description: Spotify API client ID
+  - name: SPOTIFY_CLIENT_SECRET
+    description: Spotify API client secret
+  - name: SPOTIFY_REDIRECT_URI
+    value: "http://localhost:8000/spotify/callback"
+    description: Spotify OAuth redirect URI
+    
+  # Celery Configuration
+  - name: CELERY_BROKER_URL
+    value: "redis://localhost:6379/0"
+    description: Celery message broker URL
+  - name: CELERY_RESULT_BACKEND
+    value: "redis://localhost:6379/0"
+    description: Celery result backend URL
+
+# Run configuration
+# Use: doppler run -- python manage.py runserver

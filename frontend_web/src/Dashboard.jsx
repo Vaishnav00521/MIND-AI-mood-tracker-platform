@@ -1,186 +1,377 @@
-import React from 'react';
-import { Line } from 'react-chartjs-2';
+import React, { useMemo, useState, useEffect } from 'react';
+import { Line, Radar, Doughnut } from 'react-chartjs-2';
 import { motion } from 'framer-motion';
 import { useTranslation } from 'react-i18next';
 import {
-  Chart as ChartJS, CategoryScale, LinearScale, PointElement,
-  LineElement, Title, Tooltip, Filler,
+  Chart as ChartJS, CategoryScale, LinearScale, PointElement, LineElement,
+  Title, Tooltip, Legend, Filler, RadialLinearScale, ArcElement, BarElement,
 } from 'chart.js';
-import { Activity, Moon, Flame, ArrowRight, BrainCircuit, Sparkles, Coffee } from 'lucide-react';
+import {
+  Activity, ArrowRight, Zap, Target, BookOpen, BrainCircuit, Heart, Flame, Sparkles,
+  TrendingUp, Clock, ShieldAlert, Award, CheckCircle2, RefreshCcw, Gauge, ZapOff, Camera, Mic, Waves,
+  Cpu, Network, Lightbulb, Star, Trophy, Calendar
+} from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { useMood } from './MoodContext';
+import NeuroField from './NeuroField';
 
-ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, Title, Tooltip, Filler);
+ChartJS.register(
+  CategoryScale, LinearScale, PointElement, LineElement,
+  Title, Tooltip, Legend, Filler, RadialLinearScale, ArcElement, BarElement
+);
 
-// --- Mock Data ---
-const lineData = {
-  labels: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'],
-  datasets: [
-    {
-      label: 'Trend',
-      data: [65, 59, 80, 81, 56, 95, 85],
-      fill: true,
-      backgroundColor: 'rgba(139, 92, 246, 0.15)', // purple-500 with opacity
-      borderColor: '#8B5CF6', // purple-500
-      borderWidth: 2,
-      pointBackgroundColor: '#0B0F19', // gray-900 absolute bg
-      pointBorderColor: '#06B6D4', // cyan-500
-      pointBorderWidth: 2,
-      pointRadius: 4,
-      pointHoverRadius: 6,
-      tension: 0.4,
-    },
-  ],
+const Counter = ({ value, duration = 1.2 }) => {
+  const [count, setCount] = useState(0);
+  useEffect(() => {
+    let start = 0;
+    const end = parseInt(value);
+    if (start === end) { setCount(end); return; }
+    let incrementTime = Math.max(10, (duration * 1000) / end);
+    let timer = setInterval(() => {
+      start += Math.ceil(end / 80);
+      if (start >= end) { setCount(end); clearInterval(timer); }
+      else { setCount(start); }
+    }, incrementTime);
+    return () => clearInterval(timer);
+  }, [value, duration]);
+  return <span>{count}</span>;
 };
-
-const chartOptions = {
-  responsive: true,
-  maintainAspectRatio: false,
-  plugins: {
-    legend: { display: false },
-    tooltip: {
-      backgroundColor: 'rgba(17, 24, 39, 0.9)', // gray-900 with opacity
-      titleColor: '#F3F4F6', // gray-100
-      bodyColor: '#9CA3AF', // gray-400
-      bodyFont: { size: 14, weight: '500', family: 'Inter' },
-      borderColor: 'rgba(255,255,255,0.1)',
-      borderWidth: 1,
-      padding: 12,
-      displayColors: false,
-    }
-  },
-  scales: {
-    y: {
-      min: 0,
-      max: 100,
-      grid: { color: 'rgba(255, 255, 255, 0.05)', drawBorder: false },
-      ticks: { color: '#6B7280', stepSize: 20, font: { family: 'Inter' } },
-    },
-    x: {
-      grid: { display: false, drawBorder: false },
-      ticks: { color: '#6B7280', font: { family: 'Inter' } },
-    }
-  },
-  interaction: { mode: 'index', intersect: false },
-};
-
-const insights = [
-  { id: 1, icon: <BrainCircuit size={18} className="text-purple-400" />, text: "You sleep better on days when you drink enough water.", color: "bg-purple-500/10 border-purple-500/20", iconBox: "text-purple-400" },
-  { id: 2, icon: <Sparkles size={18} className="text-cyan-400" />, text: "Your mood is trending upwards this week!", color: "bg-cyan-500/10 border-cyan-500/20", iconBox: "text-cyan-400" },
-  { id: 3, icon: <Coffee size={18} className="text-pink-400" />, text: "Taking short breaks improves your afternoon energy.", color: "bg-pink-500/10 border-pink-500/20", iconBox: "text-pink-400" },
-];
 
 export const Dashboard = () => {
   const { t } = useTranslation();
+  const navigate = useNavigate();
+  const { logs, streak, weekTrend } = useMood();
+
+  const validLogs = useMemo(() => {
+    if (!logs || !Array.isArray(logs)) return [];
+    return logs.filter(l => l && typeof l.score === 'number');
+  }, [logs]);
+
+  const latestLog = validLogs.length > 0 ? validLogs[0] : null;
+  const currentScore = latestLog ? latestLog.score : 0;
+  const previousScore = validLogs.length > 1 ? validLogs[1].score : 0;
+  const scoreChange = currentScore - previousScore;
+
+  const dynamicTips = useMemo(() => {
+    const score = currentScore;
+    if (score === 0) return { title: "Welcome!", text: "Complete your first check-in to get started.", icon: RefreshCcw, color: "text-gray-400" };
+    if (score <= 20) return { title: "Feeling Low", text: "Take some time for yourself today. Try a short walk or talk to someone.", icon: ShieldAlert, color: "text-pink-400" };
+    if (score <= 40) return { title: "Not Great", text: "Your energy is low. Consider taking a 15-minute break.", icon: ZapOff, color: "text-purple-400" };
+    if (score <= 60) return { title: "Doing Okay", text: "You're doing fine. A short walk might help.", icon: Activity, color: "text-blue-400" };
+    if (score <= 80) return { title: "Feeling Good", text: "You have good energy! Great time for important tasks.", icon: Zap, color: "text-cyan-400" };
+    return { title: "Great Day!", text: "You're feeling amazing! Perfect time for creative work.", icon: Sparkles, color: "text-yellow-400" };
+  }, [currentScore]);
+
+  const chartData = useMemo(() => {
+    const labels = weekTrend.map(t => t.label);
+    const dataPoints = weekTrend.map(t => t.score);
+    const displayData = dataPoints.map(d => d === null ? 0 : d);
+    return {
+      labels,
+      datasets: [{
+        label: 'My Mood',
+        data: displayData,
+        borderColor: '#8B5CF6',
+        backgroundColor: (context) => {
+          const chart = context.chart;
+          if (!chart.chartArea) return null;
+          const gradient = chart.ctx.createLinearGradient(0, chart.chartArea.top, 0, chart.chartArea.bottom);
+          gradient.addColorStop(0, 'rgba(139, 92, 246, 0.4)');
+          gradient.addColorStop(1, 'rgba(139, 92, 246, 0)');
+          return gradient;
+        },
+        borderWidth: 3,
+        pointBackgroundColor: displayData.map((_, i) => i === 6 ? '#06B6D4' : '#8B5CF6'),
+        pointBorderColor: '#fff',
+        pointBorderWidth: 2,
+        pointRadius: displayData.map((_, i) => i === 6 ? 6 : 0),
+        fill: true,
+        tension: 0.4,
+      }]
+    };
+  }, [weekTrend]);
+
+  const chartOptions = {
+    responsive: true, maintainAspectRatio: false,
+    plugins: { legend: { display: false }, tooltip: { enabled: true } },
+    scales: {
+      y: { min: 0, max: 100, ticks: { display: false }, grid: { display: false } },
+      x: { grid: { display: false }, ticks: { color: 'rgba(255,255,255,0.3)', font: { size: 10 } } }
+    }
+  };
+
+  const radarData = {
+    labels: ['Focus', 'Social', 'Sleep', 'Exercise', 'Energy', 'Diet'],
+    datasets: [{
+      data: latestLog ? [75, 60, 85, 70, currentScore, 65] : [50, 50, 50, 50, 50, 50],
+      backgroundColor: 'rgba(6, 182, 212, 0.2)',
+      borderColor: 'rgba(6, 182, 212, 1)',
+      borderWidth: 1, pointRadius: 0
+    }]
+  };
+
+  const radarOptions = {
+    responsive: true, maintainAspectRatio: false,
+    plugins: { legend: { display: false } },
+    scales: {
+      r: {
+        angleLines: { color: 'rgba(255,255,255,0.05)' },
+        grid: { color: 'rgba(255,255,255,0.05)' },
+        pointLabels: { color: 'rgba(255,255,255,0.4)', font: { size: 9 } },
+        ticks: { display: false, min: 0, max: 100 }
+      }
+    }
+  };
+
+  const TipIcon = dynamicTips.icon;
+
+  // Get mood color based on score
+  const getMoodColor = (score) => {
+    if (score >= 80) return '#00FF88';
+    if (score >= 60) return '#4ECDC4';
+    if (score >= 40) return '#A0A0FF';
+    if (score >= 20) return '#5C7AEA';
+    return '#FF4757';
+  };
 
   return (
-    <div className="max-w-7xl mx-auto space-y-8 pb-12 font-sans relative z-10">
-      {/* Header */}
-      <motion.div 
-        initial={{ opacity: 0, y: -5 }} 
-        animate={{ opacity: 1, y: 0 }} 
-        transition={{ duration: 0.6, ease: "easeOut" }}
-        className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 border-b border-white/10 pb-6"
-      >
-        <div>
-          <h1 className="text-3xl font-bold text-white tracking-tight">{t('dashboard.greeting')}</h1>
-          <p className="text-gray-400 mt-1 text-md bg-clip-text text-transparent bg-gradient-to-r from-gray-300 to-gray-500">Here is your progress and mood history.</p>
-        </div>
-      </motion.div>
-      
-      {/* Top Stats Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        {[
-          { title: t('dashboard.mood_score'), value: "85", subtitle: "Good", icon: <Activity size={24}/>, trend: "Feeling great today", theme: "cyan-400", textDark: "cyan-400", bgLight: "cyan-500/10", border: "cyan-500/20" },
-          { title: "Sleep Tracker", value: "7.5", subtitle: "hrs", icon: <Moon size={24}/>, trend: "Good amount of rest", theme: "purple-400", textDark: "purple-400", bgLight: "purple-500/10", border: "purple-500/20" },
-          { title: t('dashboard.streak'), value: "14", subtitle: "Days", icon: <Flame size={24}/>, trend: "Keep going!", theme: "pink-400", textDark: "pink-400", bgLight: "pink-500/10", border: "pink-500/20" }
-        ].map((stat, i) => (
-          <motion.div 
-            key={i}
-            initial={{ opacity: 0, y: 15 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: i * 0.1, duration: 0.6, ease: "easeOut" }}
-            className={`bg-white/5 backdrop-blur-xl rounded-3xl p-8 border border-white/10 flex flex-col justify-between group shadow-[0_0_30px_rgba(0,0,0,0.3)] hover:bg-white/10 hover:border-${stat.theme}/30 transition-all`}
+    <>
+      <NeuroField mood={currentScore >= 60 ? 'happy' : currentScore >= 40 ? 'neutral' : 'sad'} intensity={0.3} />
+      <div className="max-w-6xl mx-auto pb-20 font-sans text-white relative px-4 sm:px-0 z-10">
+        {/* Header */}
+        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6 relative z-10 mb-10">
+          <div>
+            <h1 className="text-3xl font-black tracking-tighter bg-clip-text text-transparent bg-gradient-to-r from-white via-gray-300 to-gray-600">
+              NEXUS CORE <span className="text-cyan-500 font-normal tracking-widest text-base ml-2 opacity-80">v2.4.0</span>
+            </h1>
+            <div className="flex items-center gap-2 text-gray-500 text-[10px] font-black uppercase tracking-widest mt-1">
+              <Clock size={12} className="text-purple-500" />
+              <span>{new Date().toLocaleTimeString()} // Node: SECURE</span>
+            </div>
+          </div>
+          <motion.button
+            whileHover={{ scale: 1.02 }}
+            whileTap={{ scale: 0.98 }}
+            onClick={() => navigate('/capture')}
+            className="px-5 py-3 bg-gradient-to-r from-purple-600 to-cyan-600 rounded-2xl font-black tracking-tighter flex items-center gap-2 border border-purple-400/30 text-sm uppercase"
           >
-           <div className="flex justify-between items-start mb-6">
-              <h3 className="text-gray-400 font-semibold text-sm xl:text-md tracking-wide uppercase">{stat.title}</h3>
-              <div className={`p-3 rounded-2xl bg-${stat.bgLight} text-${stat.textDark} border border-${stat.border} shadow-inner`}>
-                  {React.cloneElement(stat.icon, { strokeWidth: 1.5 })}
-              </div>
-           </div>
-           <div>
-             <div className="flex items-baseline gap-2">
-               <span className="text-4xl font-bold text-white tracking-tight">{stat.value}</span>
-               <span className={`text-lg text-gray-500 font-medium`}>{stat.subtitle}</span>
-             </div>
-             <p className={`text-sm font-medium text-${stat.textDark} mt-3 flex items-center gap-1 opacity-90`}>
-               {stat.trend}
-             </p>
-           </div>
-          </motion.div>
-        ))}
-      </div>
+            <Camera size={16} /> Quick Capture
+          </motion.button>
+          <motion.button
+            whileHover={{ scale: 1.02 }}
+            whileTap={{ scale: 0.98 }}
+            onClick={() => navigate('/voice')}
+            className="px-5 py-3 bg-pink-600/20 border border-pink-500/30 rounded-2xl font-black tracking-tighter flex items-center gap-2 text-sm uppercase text-pink-400 hover:bg-pink-600/30"
+          >
+            <Mic size={16} /> Voice
+          </motion.button>
+          <motion.button
+            whileHover={{ scale: 1.02 }}
+            whileTap={{ scale: 0.98 }}
+            onClick={() => navigate('/swipe')}
+            className="px-5 py-3 bg-blue-600/20 border border-blue-500/30 rounded-2xl font-black tracking-tighter flex items-center gap-2 text-sm uppercase text-blue-400 hover:bg-blue-600/30"
+          >
+            <Waves size={16} /> Swipe
+          </motion.button>
+          <motion.button
+            whileHover={{ scale: 1.02 }}
+            whileTap={{ scale: 0.98 }}
+            onClick={() => navigate('/survey')}
+            className="px-5 py-3 bg-gray-800/50 border border-white/10 rounded-2xl font-black tracking-tighter flex items-center gap-2 text-sm uppercase text-gray-400 hover:text-white hover:bg-gray-800"
+          >
+            Full Survey
+          </motion.button>
+        </div>
 
-      {/* 2-Column Grid: Chart & Insights */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        
-        {/* Left Column: Line Chart */}
-        <motion.div 
-           initial={{ opacity: 0, y: 15 }}
-           animate={{ opacity: 1, y: 0 }}
-           transition={{ delay: 0.3, duration: 0.6, ease: "easeOut" }}
-           className="bg-white/5 backdrop-blur-xl rounded-3xl border border-white/10 p-8 lg:col-span-2 flex flex-col shadow-[0_0_30px_rgba(0,0,0,0.3)]"
-        >
-            <div className="flex justify-between items-center mb-8">
-              <h3 className="font-semibold text-xl text-white">{t('dashboard.chart_title')}</h3>
-              <select className="bg-gray-900/50 backdrop-blur-md border border-white/10 text-white text-xs font-medium rounded-lg py-2 px-3 focus:outline-none focus:border-purple-500 cursor-pointer shadow-inner">
-                <option>Last 7 Days</option>
-                <option>Last 30 Days</option>
-              </select>
+        {/* Stats Row */}
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-5 mb-8">
+          {/* Score */}
+          <div className="bg-gray-900/50 backdrop-blur-xl border border-white/10 rounded-2xl p-6 shadow-lg">
+            <div className="flex items-center gap-2 mb-3">
+              <Gauge size={14} className="text-purple-400" />
+              <span className="text-[10px] font-black text-gray-500 uppercase tracking-[0.2em]">Mood Score</span>
             </div>
-            <div className="flex-1 w-full min-h-[300px]">
-                <Line data={lineData} options={chartOptions} />
+            <div className="flex items-baseline gap-2">
+              <span className="text-5xl font-black text-white"><Counter value={currentScore} /></span>
+              <span className="text-lg font-bold text-gray-600">%</span>
             </div>
-        </motion.div>
+            <div className={`mt-3 inline-flex items-center gap-1 px-2 py-1 rounded-full text-[9px] font-black uppercase tracking-widest ${scoreChange >= 0 ? 'bg-cyan-500/20 text-cyan-400' : 'bg-pink-500/20 text-pink-400'}`}>
+              {scoreChange >= 0 ? '+' : ''}{scoreChange} variance
+            </div>
+          </div>
 
-        {/* Right Column: AI Insights */}
-        <motion.div 
-           initial={{ opacity: 0, y: 15 }}
-           animate={{ opacity: 1, y: 0 }}
-           transition={{ delay: 0.4, duration: 0.6, ease: "easeOut" }}
-           className="bg-white/5 backdrop-blur-xl rounded-3xl border border-white/10 p-8 flex flex-col shadow-[0_0_30px_rgba(0,0,0,0.3)]"
-        >
-            <div className="flex items-center gap-3 mb-8 border-b border-white/10 pb-6">
-              <Sparkles className="text-purple-400" size={24} strokeWidth={1.5} />
-              <h3 className="font-semibold text-xl text-white">Daily Tips</h3>
+          {/* Streak */}
+          <div className="bg-gray-900/50 backdrop-blur-xl border border-white/10 rounded-2xl p-6 shadow-lg">
+            <div className="flex items-center gap-2 mb-3">
+              <Flame size={14} className="text-orange-400" />
+              <span className="text-[10px] font-black text-gray-500 uppercase tracking-[0.2em]">Persistence</span>
             </div>
-            
-            <div className="flex-1 space-y-4">
-              {insights.map((insight, idx) => (
-                <motion.div 
-                  key={insight.id}
-                  initial={{ opacity: 0, y: 10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: 0.5 + (idx * 0.1) }}
-                  className="flex gap-4 p-4 rounded-2xl bg-white/5 hover:bg-white/10 transition-colors border border-white/5 cursor-pointer group backdrop-blur-sm"
-                >
-                  <div className={`mt-1 flex-shrink-0 w-12 h-12 rounded-full flex items-center justify-center border shadow-inner ${insight.color}`}>
-                    {React.cloneElement(insight.icon, { strokeWidth: 1.5, className: insight.iconBox })}
+            <div className="flex items-baseline gap-2">
+              <span className="text-5xl font-black text-white"><Counter value={streak} /></span>
+              <span className="text-xs font-bold text-gray-500 uppercase">Days</span>
+            </div>
+            <p className="mt-3 text-[9px] font-bold text-gray-600 uppercase tracking-widest">Streak Node Active</p>
+          </div>
+
+          {/* Tip */}
+          <div className="bg-gray-900/50 backdrop-blur-xl border border-white/10 rounded-2xl p-6 shadow-lg">
+            <div className="flex items-center gap-2 mb-3">
+              <TipIcon size={14} className={dynamicTips.color} />
+              <span className="text-[10px] font-black text-gray-500 uppercase tracking-[0.2em]">{dynamicTips.title}</span>
+            </div>
+            <p className="text-sm font-medium text-gray-300 leading-relaxed">"{dynamicTips.text}"</p>
+          </div>
+        </div>
+
+        {/* Charts Row */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-5 mb-8">
+          {/* Waveform */}
+          <div className="md:col-span-2 bg-gray-900/50 backdrop-blur-xl border border-white/10 rounded-2xl p-6 shadow-lg">
+            <div className="flex items-center gap-2 mb-4">
+              <TrendingUp size={14} className="text-purple-400" />
+              <span className="text-[10px] font-black text-gray-500 uppercase tracking-[0.2em]">Mood Trend</span>
+            </div>
+            <div className="h-56">
+              <Line data={chartData} options={chartOptions} />
+            </div>
+            <p className="text-[9px] font-black text-gray-600 uppercase tracking-[0.3em] mt-3 text-center">Weekly Mood History</p>
+          </div>
+
+          {/* Radar */}
+          <div className="bg-gray-900/50 backdrop-blur-xl border border-white/10 rounded-2xl p-6 shadow-lg">
+            <div className="flex items-center gap-2 mb-4">
+              <Activity size={14} className="text-cyan-400" />
+              <span className="text-[10px] font-black text-gray-500 uppercase tracking-[0.2em]">Parametric</span>
+            </div>
+            <div className="h-48">
+              <Radar data={radarData} options={radarOptions} />
+            </div>
+          </div>
+        </div>
+
+        {/* Bottom Row */}
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-5">
+          {/* Sub-system Tethers */}
+          <div className="bg-gray-900/50 backdrop-blur-xl border border-white/10 rounded-2xl p-6 shadow-lg">
+            <div className="flex items-center gap-2 mb-4">
+              <BrainCircuit size={14} className="text-purple-400" />
+              <span className="text-[10px] font-black text-gray-500 uppercase tracking-[0.2em]">Tethers</span>
+            </div>
+            <div className="space-y-3">
+              {[
+                { label: "Check-in", icon: BrainCircuit, color: "text-purple-400" },
+                { label: "Health", icon: Heart, color: "text-red-400", active: true },
+                { label: "Milestones", icon: Award, color: "text-yellow-400", count: "12/20" }
+              ].map((item, i) => (
+                <div key={i} className="flex items-center justify-between p-3 bg-black/20 rounded-xl border border-white/5">
+                  <div className="flex items-center gap-3">
+                    <item.icon size={14} className={item.color} />
+                    <span className="text-[10px] font-bold text-gray-400">{item.label}</span>
                   </div>
-                  <div>
-                    <p className="text-sm text-gray-200 leading-relaxed font-medium">{insight.text}</p>
-                    <p className="text-xs text-purple-400 mt-2 flex items-center gap-1 font-semibold opacity-0 group-hover:opacity-100 transition-opacity">
-                      Read more <ArrowRight size={14} strokeWidth={2} />
-                    </p>
-                  </div>
-                </motion.div>
+                  {item.active ? (
+                    <div className="w-1.5 h-1.5 rounded-full bg-cyan-400 animate-pulse"></div>
+                  ) : item.count ? (
+                    <span className="text-[8px] font-black text-gray-600">{item.count}</span>
+                  ) : (
+                    <CheckCircle2 size={12} className="text-cyan-600" />
+                  )}
+                </div>
               ))}
             </div>
+          </div>
 
-            <button className="mt-6 w-full py-3.5 rounded-xl bg-gray-900/50 backdrop-blur-md text-white font-semibold text-sm hover:border-purple-500 transition-all border border-white/10 shadow-inner group flex justify-center items-center gap-2">
-              See All Tips <ArrowRight size={16} className="text-purple-500 group-hover:translate-x-1 transition-transform" />
-            </button>
-        </motion.div>
+          {/* AI Mind Insights */}
+          <div className="sm:col-span-2 bg-gradient-to-br from-purple-900/40 via-indigo-900/30 to-cyan-900/40 backdrop-blur-xl border border-purple-500/30 rounded-2xl p-6 shadow-lg relative overflow-hidden">
+            <div className="absolute top-0 right-0 w-32 h-32 bg-purple-500/10 rounded-full blur-3xl"></div>
+            <div className="absolute bottom-0 left-0 w-24 h-24 bg-cyan-500/10 rounded-full blur-2xl"></div>
 
+            <div className="relative z-10">
+              <div className="flex items-center gap-3 mb-6">
+                <div className="p-2 bg-gradient-to-br from-purple-500/30 to-cyan-500/30 rounded-xl border border-purple-400/30">
+                  <BrainCircuit className="text-purple-300" size={20} />
+                </div>
+                <div>
+                  <h3 className="text-lg font-bold text-white">AI Mind Insights</h3>
+                  <p className="text-xs text-purple-300/70">Your mood patterns</p>
+                </div>
+              </div>
+
+              {/* Mood Distribution */}
+              <div className="grid grid-cols-2 gap-4 mb-6">
+                <div className="bg-black/30 rounded-xl p-4 border border-white/5">
+                  <div className="flex items-center gap-2 mb-2">
+                    <Lightbulb size={14} className="text-cyan-400" />
+                    <span className="text-xs text-gray-400">Emotional Balance</span>
+                  </div>
+                  <div className="text-2xl font-bold text-white">{currentScore > 0 ? Math.round(currentScore) : '--'}%</div>
+                  <div className="w-full bg-gray-700 h-1.5 rounded-full mt-2 overflow-hidden">
+                    <motion.div
+                      className="h-full rounded-full"
+                      style={{ backgroundColor: getMoodColor(currentScore) }}
+                      initial={{ width: 0 }}
+                      animate={{ width: `${currentScore}%` }}
+                      transition={{ duration: 1, delay: 0.5 }}
+                    />
+                  </div>
+                </div>
+
+                <div className="bg-black/30 rounded-xl p-4 border border-white/5">
+                  <div className="flex items-center gap-2 mb-2">
+                    <Zap size={14} className="text-yellow-400" />
+                    <span className="text-xs text-gray-400">Energy Level</span>
+                  </div>
+                  <div className="text-2xl font-bold text-white">{streak || 0} day streak</div>
+                  <p className="text-xs text-gray-500 mt-1">Keep the momentum!</p>
+                </div>
+              </div>
+
+              {/* AI Recommendations */}
+              <div className="space-y-3">
+                <div className="flex items-start gap-3 p-3 bg-purple-500/10 rounded-xl border border-purple-500/20">
+                  <Lightbulb size={16} className="text-yellow-400 mt-0.5 flex-shrink-0" />
+                  <div>
+                    <p className="text-sm text-white">{currentScore >= 60 ? 'Your mood is trending upward! Consider sharing this positivity with others.' : 'Consider taking a short walk or practicing deep breathing.'}</p>
+                  </div>
+                </div>
+
+                <div className="flex items-start gap-3 p-3 bg-cyan-500/10 rounded-xl border border-cyan-500/20">
+                  <Star size={16} className="text-cyan-400 mt-0.5 flex-shrink-0" />
+                  <div>
+                    <p className="text-sm text-white">Weekly insight: You've been most consistent with your morning check-ins.</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Quick Actions */}
+          <div className="sm:col-span-2 bg-gray-900/50 backdrop-blur-xl border border-white/10 rounded-2xl p-6 shadow-lg">
+            <div className="flex items-center gap-2 mb-4">
+              <Target size={14} className="text-cyan-400" />
+              <span className="text-[10px] font-black text-gray-500 uppercase tracking-[0.2em]">Quick Navigation</span>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              {[
+                { label: "Daily Check-in", path: "/survey", icon: BookOpen, color: "text-purple-400 border-purple-500/20" },
+                { label: "AI Companion", path: "/ai-chat", icon: Sparkles, color: "text-cyan-400 border-cyan-500/20" },
+                { label: "Habits Engine", path: "/habits", icon: Flame, color: "text-orange-400 border-orange-500/20" },
+                { label: "Calendar View", path: "/calendar", icon: Clock, color: "text-blue-400 border-blue-500/20" },
+              ].map((item, i) => (
+                <button
+                  key={i}
+                  onClick={() => navigate(item.path)}
+                  className={`flex items-center gap-3 p-4 bg-black/20 rounded-xl border border-white/5 hover:bg-white/5 transition-colors text-left`}
+                >
+                  <item.icon size={16} className={item.color.split(' ')[0]} />
+                  <span className="text-xs font-bold text-gray-300">{item.label}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
       </div>
-    </div>
+    </>
   );
 };
+
+export default Dashboard;

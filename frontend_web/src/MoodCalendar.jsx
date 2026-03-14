@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { ChevronLeft, ChevronRight, Calendar, Sparkles, Activity } from 'lucide-react';
 import { Line, Doughnut } from 'react-chartjs-2';
 import 'chart.js/auto';
+import { useMood } from './MoodContext';
 
 const DAYS_OF_WEEK = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
@@ -57,6 +58,14 @@ const generateMockMonthData = (year, month) => {
   return days;
 };
 
+// Journal text based on status for display in tooltip
+const statusJournal = {
+    'Optimal':  'Feeling great today! High energy and good mood.',
+    'Nominal':  'A decent day overall. Manageable stress levels.',
+    'Fatigued': 'Feeling a bit tired. Could use some rest.',
+    'Critical': 'Tough day. Low energy and high stress detected.',
+};
+
 // Aurora Glass coloring
 const getStatusColor = (status) => {
   switch (status) {
@@ -71,6 +80,8 @@ const getStatusColor = (status) => {
 export const MoodCalendar = () => {
     // Current viewed month/year state
     const [currentDate, setCurrentDate] = useState(new Date());
+    const [selectedDay, setSelectedDay] = useState(null);
+    const { logs, getStatusForScore } = useMood();
 
     const handlePrevMonth = () => {
         setCurrentDate(prev => new Date(prev.getFullYear(), prev.getMonth() - 1, 1));
@@ -80,10 +91,31 @@ export const MoodCalendar = () => {
         setCurrentDate(prev => new Date(prev.getFullYear(), prev.getMonth() + 1, 1));
     };
 
-    // Re-calculate the grid whenever the month changes
+    // Re-calculate the grid whenever the month changes, and merge with real logs
     const calendarDays = useMemo(() => {
-        return generateMockMonthData(currentDate.getFullYear(), currentDate.getMonth());
-    }, [currentDate.getFullYear(), currentDate.getMonth()]);
+        const mockDays = generateMockMonthData(currentDate.getFullYear(), currentDate.getMonth());
+        return mockDays.map(d => {
+            if (!d) return null;
+            // Build the date key for this calendar cell
+            const y = currentDate.getFullYear();
+            const m = String(currentDate.getMonth() + 1).padStart(2, '0');
+            const day = String(d.day).padStart(2, '0');
+            const dateKey = `${y}-${m}-${day}`;
+            // Check if there is a real log for this date
+            const realLog = logs.find(l => l.date === dateKey);
+            if (realLog) {
+                // Override mock data with real user data
+                return {
+                    ...d,
+                    status: realLog.status,
+                    score: realLog.score,
+                    journal: statusJournal[realLog.status] || realLog.journal || '',
+                    isReal: true,
+                };
+            }
+            return d;
+        });
+    }, [currentDate.getFullYear(), currentDate.getMonth(), logs]);
 
     // Extract data for live charts within the currently viewed month
     const validDays = calendarDays.filter(d => d && d.status);
@@ -243,39 +275,22 @@ export const MoodCalendar = () => {
 
                       const { day, status, score, journal, date } = dateObj;
                       const hasData = status !== null;
-                      
                       const isToday = day === new Date().getDate() && currentDate.getMonth() === new Date().getMonth() && currentDate.getFullYear() === new Date().getFullYear();
 
                       return (
-                         <motion.div 
+                        <motion.div 
                           key={index}
                           initial={{ opacity: 0, y: 5 }}
                           animate={{ opacity: 1, y: 0 }}
                           transition={{ delay: index * 0.005, ease: "easeOut" }}
-                          className={`relative group aspect-square rounded-lg sm:rounded-xl border ${getStatusColor(status)} flex items-center justify-center transition-all cursor-pointer backdrop-blur-sm ${hasData ? 'hover:scale-[1.05] hover:z-20' : ''} ${isToday ? 'ring-2 ring-cyan-400 ring-offset-2 ring-offset-gray-900' : ''}`}
+                          onClick={() => setSelectedDay(dateObj)}
+                          className={`relative group aspect-square rounded-lg sm:rounded-xl border ${getStatusColor(status)} flex items-center justify-center transition-all cursor-pointer backdrop-blur-sm ${hasData ? 'hover:scale-[1.05] hover:z-20 shadow-[0_4px_20px_rgba(0,0,0,0.3)]' : 'opacity-40 hover:opacity-100'} ${isToday ? 'ring-2 ring-cyan-400 ring-offset-2 ring-offset-gray-900' : ''} ${selectedDay?.day === day ? 'bg-white/20 border-white/40 scale-110 z-10' : ''}`}
                         >
-                          <span className={`text-xs sm:text-sm font-bold ${hasData ? '' : 'text-gray-600'}`}>
+                          <span className={`text-xs sm:text-sm font-black ${hasData ? 'text-white' : 'text-gray-600'}`}>
                             {day}
                           </span>
-
-                          {/* Aurora Tooltip Component */}
                           {hasData && (
-                            <div className="absolute bottom-full mb-3 left-1/2 -translate-x-1/2 w-48 sm:w-64 bg-gray-900/95 backdrop-blur-xl border border-white/20 text-white text-xs rounded-2xl p-5 shadow-[0_0_40px_rgba(0,0,0,0.8)] opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-300 z-50 pointer-events-none transform group-hover:-translate-y-2">
-                              
-                              <div className="flex justify-between items-start mb-3 pb-3 border-b border-white/10">
-                                <div>
-                                    <span className={`font-bold text-[10px] uppercase tracking-widest flex items-center gap-1.5 ${status === 'Critical' ? 'text-pink-400' : status === 'Optimal' ? 'text-cyan-400' : status === 'Fatigued' ? 'text-purple-400' : 'text-gray-300'}`}>
-                                       {status === 'Optimal' && <Sparkles size={10}/>} {status}
-                                    </span>
-                                    <span className="text-[9px] text-gray-500 font-bold block mt-1 uppercase tracking-wider">{MONTHS[date.getMonth()]} {day}, {date.getFullYear()}</span>
-                                </div>
-                                <span className="bg-white/10 px-2 py-1 rounded text-[9px] font-black text-white tracking-[0.2em] uppercase border border-white/5 shadow-inner">Score: {score}</span>
-                              </div>
-                              <p className="text-gray-400 leading-relaxed text-[11px] font-medium italic break-words whitespace-normal relative z-10 block w-full">"{journal}"</p>
-                              
-                              {/* Glowing bottom edge indicator */}
-                              <div className={`absolute bottom-0 left-0 w-full h-1 rounded-b-2xl opacity-50 ${status === 'Critical' ? 'bg-pink-500' : status === 'Optimal' ? 'bg-cyan-500' : status === 'Fatigued' ? 'bg-purple-500' : 'bg-gray-500'}`}></div>
-                            </div>
+                              <div className={`absolute bottom-1 w-1 h-1 rounded-full ${status === 'Critical' ? 'bg-pink-500' : status === 'Optimal' ? 'bg-cyan-500' : 'bg-purple-500'}`}></div>
                           )}
                         </motion.div>
                       );
@@ -283,6 +298,40 @@ export const MoodCalendar = () => {
                   </motion.div>
                 </AnimatePresence>
               </div>
+
+              {/* Day Intelligence Pane (Fixes the "going outside calendar" issue) */}
+              <AnimatePresence mode="wait">
+                {selectedDay && selectedDay.status && (
+                  <motion.div 
+                    initial={{ opacity: 0, height: 0 }}
+                    animate={{ opacity: 1, height: 'auto' }}
+                    exit={{ opacity: 0, height: 0 }}
+                    className="mt-8 bg-gray-900/80 backdrop-blur-3xl border border-white/10 rounded-3xl p-6 shadow-2xl relative overflow-hidden"
+                  >
+                    <div className={`absolute top-0 left-0 w-1 h-full ${selectedDay.status === 'Critical' ? 'bg-pink-500' : selectedDay.status === 'Optimal' ? 'bg-cyan-500' : 'bg-purple-500'}`}></div>
+                    <div className="flex justify-between items-start mb-4">
+                      <div>
+                        <h4 className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Telemetry Record</h4>
+                        <p className="text-lg font-black text-white italic">
+                          {MONTHS[selectedDay.date.getMonth()]} {selectedDay.day}, {selectedDay.date.getFullYear()}
+                        </p>
+                      </div>
+                      <div className="flex gap-3">
+                        <div className="bg-black/40 px-3 py-1.5 rounded-xl border border-white/5 flex flex-col items-center">
+                          <span className="text-[10px] font-black text-white">{selectedDay.score}</span>
+                          <span className="text-[8px] font-black text-gray-600 uppercase">Score</span>
+                        </div>
+                        <div className={`px-4 py-1.5 rounded-xl border text-[10px] font-black uppercase tracking-widest flex items-center gap-2 ${selectedDay.status === 'Critical' ? 'bg-pink-500/10 text-pink-400 border-pink-500/30' : 'bg-cyan-500/10 text-cyan-400 border-cyan-500/30'}`}>
+                          {selectedDay.status}
+                        </div>
+                      </div>
+                    </div>
+                    <p className="text-sm text-gray-300 leading-relaxed font-medium bg-black/20 p-4 rounded-2xl border border-white/5">
+                      "{selectedDay.journal || "No thematic narrative provided for this cycle."}"
+                    </p>
+                  </motion.div>
+                )}
+              </AnimatePresence>
             </motion.div>
 
             {/* Live Charts Section */}
@@ -352,3 +401,5 @@ export const MoodCalendar = () => {
       </div>
     );
 };
+export default MoodCalendar;
+

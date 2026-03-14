@@ -1,155 +1,200 @@
-import React, { useState } from 'react';
-import { motion } from 'framer-motion';
-import { ShieldCheck, Lock, DownloadCloud, FileText, Server, ArrowRight, ToggleLeft, ToggleRight, Network, Sparkles } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
+import {
+    ShieldCheck, Lock, DownloadCloud, FileText, Server, ToggleLeft, ToggleRight,
+    Sparkles, CheckCircle, Trash2, AlertTriangle, ShieldAlert, History, Database, Activity
+} from 'lucide-react';
+import PageTransition from './PageTransition';
+import NeuroField from './NeuroField';
 
 export const PrivacyHub = () => {
-    const [allowResearch, setAllowResearch] = useState(false);
+    const [permissions, setPermissions] = useState(() => {
+        const saved = localStorage.getItem('mind_ai_privacy_perms');
+        return saved ? JSON.parse(saved) : {
+            dataSharing: false,
+            cloudSync: true,
+            anonymousAnalytics: true,
+            aiProcessing: true
+        };
+    });
 
-    const logEntries = [
-        { id: 1, action: "Authentication Verified", date: "Today, 08:32 AM", device: "Browser Node", ip: "192.168.1.44" },
-        { id: 2, action: "Data Packet Synced", date: "Yesterday, 09:15 PM", device: "Mobile Node", ip: "10.0.0.122" },
-        { id: 3, action: "Archive Extraction", date: "Oct 12, 10:45 AM", device: "Browser Node", ip: "192.168.1.44" },
-    ];
+    const [savedMessage, setSavedMessage] = useState(false);
+    const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+
+    // Persistence
+    useEffect(() => {
+        localStorage.setItem('mind_ai_privacy_perms', JSON.stringify(permissions));
+    }, [permissions]);
+
+    const handleToggle = (key) => {
+        setPermissions(prev => ({ ...prev, [key]: !prev[key] }));
+        showSavedMessage();
+    };
+
+    const showSavedMessage = () => {
+        setSavedMessage(true);
+        setTimeout(() => setSavedMessage(false), 2000);
+    };
+
+    const handleDownload = () => {
+        const data = {
+            logs: JSON.parse(localStorage.getItem('mood_logs') || '[]'),
+            habits: JSON.parse(localStorage.getItem('mind_ai_habits') || '[]'),
+            chat: JSON.parse(localStorage.getItem('mind_ai_chat_history') || '[]'),
+            entities: JSON.parse(localStorage.getItem('mind_ai_entities') || '[]'),
+            privacy: permissions,
+            exportDate: new Date().toISOString()
+        };
+
+        const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = `mind-ai-telemetry-archive-${Date.now()}.json`;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        URL.revokeObjectURL(url);
+    };
+
+    const handleDeleteAll = () => {
+        localStorage.clear();
+        window.location.reload();
+    };
 
     return (
-        <div className="max-w-4xl mx-auto space-y-12 pb-16 font-sans text-white relative z-10">
-            {/* Minimalist Trust Header */}
-            <motion.div 
-               initial={{ opacity: 0, y: -20 }} 
-               animate={{ opacity: 1, y: 0 }} 
-               className="text-center pt-8 pb-4"
-            >
-                <div className="inline-flex items-center justify-center p-5 bg-gradient-to-br from-cyan-500/20 to-purple-500/20 border border-white/20 rounded-[2rem] shadow-[0_0_30px_rgba(6,182,212,0.3)] mb-6 relative backdrop-blur-sm">
-                    <ShieldCheck size={48} className="text-cyan-400 relative z-10" strokeWidth={1.5} />
-                    <div className="absolute inset-0 border border-cyan-400/50 rounded-[2rem] animate-pulse opacity-50"></div>
+        <PageTransition>
+            <NeuroField />
+            <div className="max-w-4xl mx-auto space-y-10 pb-20 font-sans text-white relative z-10">
+
+                {/* Header */}
+                <motion.div
+                    initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }}
+                    className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-6 border-b border-white/10 pb-8 py-2 relative"
+                >
+                    <div>
+                        <h1 className="text-4xl font-black tracking-tighter bg-clip-text text-transparent bg-gradient-to-r from-white via-gray-400 to-gray-600">
+                            PRIVACY <span className="text-cyan-500">VAULT</span>
+                        </h1>
+                        <p className="text-gray-400 mt-1 text-xs uppercase tracking-[0.3em] font-bold">Data Sovereignty & Encryption Control</p>
+                    </div>
+
+                    <AnimatePresence>
+                        {savedMessage && (
+                            <motion.div
+                                initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0 }}
+                                className="bg-cyan-500/10 text-cyan-400 px-6 py-3 rounded-2xl flex items-center gap-3 text-xs font-black uppercase tracking-widest border border-cyan-500/30 shadow-[0_0_20px_rgba(6,182,212,0.2)]"
+                            >
+                                <CheckCircle size={16} /> Preferences Synced
+                            </motion.div>
+                        )}
+                    </AnimatePresence>
+                </motion.div>
+
+                {/* Core Permissions Grid */}
+                <div className="grid grid-cols-1 gap-6 relative">
+                    <motion.div
+                        initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}
+                        className="bg-gray-900/60 backdrop-blur-3xl border border-white/10 rounded-[3rem] p-10 shadow-[0_0_60px_rgba(0,0,0,0.5)] overflow-hidden relative"
+                    >
+                        <div className="absolute top-0 right-0 w-80 h-80 bg-cyan-500/5 rounded-full blur-3xl pointer-events-none"></div>
+
+                        <h2 className="text-xl font-black text-white uppercase tracking-tight mb-10 flex items-center gap-4">
+                            <Lock size={24} className="text-cyan-400" /> Security Governance
+                        </h2>
+
+                        <div className="space-y-6">
+                            {[
+                                { id: 'dataSharing', label: 'Share Data with Doctors', desc: 'Allows your connected doctors to see your mood data for better care.', icon: <Database size={18} /> },
+                                { id: 'cloudSync', label: 'Cloud Backup', desc: 'Keeps your data safe by storing it securely in the cloud.', icon: <Server size={18} /> },
+                                { id: 'aiProcessing', label: 'Heuristic Personalization', desc: 'Permits the MindAI core to analyze textual patterns for deep resonance.', icon: <Sparkles size={18} /> },
+                                { id: 'anonymousAnalytics', label: 'Anonymized Telemetry', desc: 'Non-identifiable usage stats used for swarm optimization.', icon: <Activity size={18} /> },
+                            ].map((p) => (
+                                <div key={p.id} className="group flex items-center justify-between p-6 bg-black/40 rounded-[2rem] border border-white/5 hover:border-cyan-500/30 transition-all hover:bg-black/60 shadow-inner">
+                                    <div className="flex-1 pr-8">
+                                        <div className="flex items-center gap-3 mb-1">
+                                            <div className="text-cyan-500 group-hover:scale-110 transition-transform">{p.icon}</div>
+                                            <h3 className="font-black text-gray-200 uppercase tracking-widest text-xs">{p.label}</h3>
+                                        </div>
+                                        <p className="text-[11px] text-gray-500 font-medium leading-relaxed">{p.desc}</p>
+                                    </div>
+                                    <button onClick={() => handleToggle(p.id)} className="text-cyan-600 transition-transform active:scale-90">
+                                        {permissions[p.id] ? <ToggleRight size={50} className="text-cyan-400" /> : <ToggleLeft size={50} className="text-gray-700" />}
+                                    </button>
+                                </div>
+                            ))}
+                        </div>
+                    </motion.div>
                 </div>
-                <h1 className="text-4xl font-bold tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-white to-gray-400 leading-tight">Security Cortex</h1>
-                <p className="text-gray-400 mt-4 max-w-2xl mx-auto font-medium leading-relaxed text-sm">
-                   Your biometric and cognitive datasets are cryptographically isolated. The system operates on an absolute zero-trust framework.
-                </p>
-            </motion.div>
 
-            {/* Core Status Grid */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                
-                {/* Status Card 1 */}
-                <motion.div 
-                    initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.1, ease: "easeOut" }}
-                    className="bg-white/5 backdrop-blur-xl rounded-[2.5rem] p-8 sm:p-10 border border-white/10 shadow-[0_0_30px_rgba(0,0,0,0.3)] group hover:border-cyan-500/50 transition-all overflow-hidden relative"
-                >
-                    <div className="absolute top-[-20%] left-[-20%] w-[150px] h-[150px] bg-cyan-500/20 blur-3xl rounded-full"></div>
-                    <div className="flex items-center gap-5 mb-6 pb-6 border-b border-white/10 relative z-10">
-                        <div className="bg-white/5 border border-white/10 p-4 rounded-2xl text-cyan-400 shadow-inner group-hover:scale-105 transition-transform">
-                            <Lock size={28} strokeWidth={1.5} />
-                        </div>
+                {/* Data Management Tools */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                    {/* Export Card */}
+                    <motion.div
+                        initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }}
+                        className="bg-gradient-to-br from-cyan-900/20 to-blue-900/10 backdrop-blur-3xl border border-cyan-500/20 rounded-[2.5rem] p-10 shadow-2xl flex flex-col justify-between"
+                    >
                         <div>
-                            <h3 className="font-bold text-lg tracking-tight text-white">Quantum Encryption</h3>
-                            <span className="inline-flex items-center gap-2 text-[10px] uppercase font-bold tracking-wider text-cyan-400 bg-cyan-500/10 border border-cyan-500/30 shadow-[0_0_10px_rgba(6,182,212,0.2)] px-3 py-1.5 rounded-lg mt-2">
-                                <span className="w-1.5 h-1.5 rounded-full bg-cyan-400 animate-pulse"></span> Network Secure
-                            </span>
+                            <div className="w-14 h-14 bg-cyan-500/10 rounded-2xl flex items-center justify-center mb-6 shadow-inner border border-cyan-500/20">
+                                <DownloadCloud size={28} className="text-cyan-400" />
+                            </div>
+                            <h2 className="text-2xl font-black text-white uppercase tracking-tighter mb-4">Export Archive</h2>
+                            <p className="text-sm text-gray-400 leading-relaxed font-medium mb-8">
+                                Download a full encrypted JSON archive of your mood logs, AI interactions, and habits. You have the right to portability under the Global Privacy Act.
+                            </p>
                         </div>
-                    </div>
-                    <p className="text-gray-400 text-sm leading-relaxed mb-8 relative z-10 font-medium">
-                        All local node entries are scrambled. Root servers lack the decryption matrix. Your thoughts stay local.
-                    </p>
-                    <a href="#" className="flex items-center gap-2 text-cyan-400 font-bold text-[10px] uppercase tracking-wider hover:text-cyan-300 transition group/link relative z-10">
-                       Access Transparency Log <ArrowRight size={16} className="group-hover/link:translate-x-1 transition-transform" />
-                    </a>
-                </motion.div>
+                        <button
+                            onClick={handleDownload}
+                            className="w-full bg-cyan-600 hover:bg-cyan-500 text-white font-black uppercase tracking-widest py-5 rounded-2xl shadow-[0_0_20px_rgba(6,182,212,0.4)] transition-all flex items-center justify-center gap-3 text-xs"
+                        >
+                            <DownloadCloud size={20} /> Request Telemetry Archive
+                        </button>
+                    </motion.div>
 
-                {/* Status Card 2 */}
-                <motion.div 
-                    initial={{ opacity: 0, x: 10 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.2, ease: "easeOut" }}
-                    className="bg-white/5 backdrop-blur-xl rounded-[2.5rem] p-8 sm:p-10 border border-white/10 shadow-[0_0_30px_rgba(0,0,0,0.3)] flex flex-col justify-between group hover:border-purple-500/50 transition-all overflow-hidden relative"
-                >
-                    <div className="absolute bottom-[-20%] right-[-20%] w-[150px] h-[150px] bg-purple-500/20 blur-3xl rounded-full"></div>
-                    <div className="relative z-10">
-                        <div className="flex items-center gap-5 mb-6 pb-6 border-b border-white/10">
-                            <div className="bg-white/5 border border-white/10 p-4 rounded-2xl text-purple-400 shadow-inner group-hover:scale-105 transition-transform">
-                                <Server size={28} strokeWidth={1.5} />
+                    {/* Deletion Card */}
+                    <motion.div
+                        initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }}
+                        className="bg-gradient-to-br from-pink-900/20 to-orange-900/10 backdrop-blur-3xl border border-pink-500/20 rounded-[2.5rem] p-10 shadow-2xl flex flex-col justify-between"
+                    >
+                        <div>
+                            <div className="w-14 h-14 bg-pink-500/10 rounded-2xl flex items-center justify-center mb-6 shadow-inner border border-pink-500/20">
+                                <Trash2 size={28} className="text-pink-400" />
                             </div>
-                            <div>
-                                <h3 className="font-bold text-lg tracking-tight text-white">Framework Compliance</h3>
-                                <p className="text-purple-400 text-[10px] mt-1 font-bold tracking-[0.2em] uppercase">HIPAA & GDPR ALIGNED</p>
+                            <h2 className="text-2xl font-black text-white uppercase tracking-tighter mb-4">Delete All Data</h2>
+                            <p className="text-sm text-gray-400 leading-relaxed font-medium mb-8">
+                                Permanently delete all your data. This cannot be undone. All your progress and streak data will be lost.
+                            </p>
+                        </div>
+
+                        {!showDeleteConfirm ? (
+                            <button
+                                onClick={() => setShowDeleteConfirm(true)}
+                                className="w-full bg-pink-500/10 hover:bg-pink-500/20 border border-pink-500/40 text-pink-400 font-black uppercase tracking-widest py-5 rounded-2xl transition-all flex items-center justify-center gap-3 text-xs"
+                            >
+                                <ShieldAlert size={20} /> Initiate Purge Sequence
+                            </button>
+                        ) : (
+                            <div className="flex flex-col gap-3">
+                                <button
+                                    onClick={handleDeleteAll}
+                                    className="w-full bg-pink-600 hover:bg-pink-500 text-white font-black uppercase tracking-widest py-5 rounded-2xl shadow-lg flex items-center justify-center gap-3 text-xs"
+                                >
+                                    <AlertTriangle size={20} /> Confirm Total Wipe
+                                </button>
+                                <button
+                                    onClick={() => setShowDeleteConfirm(false)}
+                                    className="w-full bg-black/40 text-gray-500 font-black uppercase tracking-widest py-3 text-[10px]"
+                                >
+                                    Abort Sequence
+                                </button>
                             </div>
-                        </div>
-                        
-                        <div className="flex items-center text-left gap-4 justify-between bt-2 bg-gray-900/50 p-5 rounded-2xl border border-white/10 shadow-inner">
-                             <div className="flex-1">
-                                 <h4 className="font-bold text-sm text-gray-200">Neural Analytics</h4>
-                                 <p className="text-[11px] text-gray-500 mt-1.5 leading-snug font-medium">Contribute scrubbed datasets to globally refine AI predictive architecture.</p>
-                             </div>
-                             <button onClick={() => setAllowResearch(!allowResearch)} className="transition-transform active:scale-95 focus:outline-none flex-shrink-0">
-                                 {allowResearch ? (
-                                    <ToggleRight size={44} className="text-purple-400 drop-shadow-[0_0_8px_rgba(168,85,247,0.6)]" strokeWidth={1.5} />
-                                 ) : (
-                                    <ToggleLeft size={44} className="text-gray-600" strokeWidth={1.5} />
-                                 )}
-                             </button>
-                        </div>
-                    </div>
-                </motion.div>
+                        )}
+                    </motion.div>
+                </div>
 
             </div>
-
-            {/* Data Export Command Center */}
-            <motion.div 
-               initial={{ opacity: 0, y: 15 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 }}
-               className="bg-black/20 backdrop-blur-xl border border-white/10 rounded-[3rem] p-8 sm:p-12 relative overflow-hidden shadow-[0_0_40px_rgba(0,0,0,0.4)]"
-            >
-                <div className="absolute top-0 right-0 w-[400px] h-full bg-gradient-to-l from-white/5 to-transparent pointer-events-none"></div>
-                <div className="absolute top-0 right-[-5%] p-8 opacity-[0.05] pointer-events-none z-0">
-                    <DownloadCloud size={240} className="text-cyan-400"/>
-                </div>
-                
-                <div className="relative z-10 max-w-xl">
-                    <div className="bg-white/10 border border-white/20 w-fit p-4 rounded-2xl mb-6 shadow-inner backdrop-blur-md">
-                        <FileText size={28} className="text-cyan-400" strokeWidth={1.5} />
-                    </div>
-                    <h2 className="text-2xl font-bold tracking-tight mb-4 text-white">Extract User Archive</h2>
-                    <p className="text-gray-400 text-sm mb-8 font-medium leading-relaxed">
-                        Execute a bulk download of your telemetry history, neural mappings, and configurations. You maintain absolute sovereignty over this data.
-                    </p>
-                    <div className="flex flex-col sm:flex-row gap-4">
-                        <button className="bg-cyan-500/20 text-cyan-400 border border-cyan-500/50 hover:bg-cyan-500/30 flex items-center justify-center gap-3 px-8 py-4 rounded-xl font-bold uppercase tracking-wider text-[11px] transition-all shadow-[0_0_15px_rgba(6,182,212,0.2)]">
-                            <DownloadCloud size={20} strokeWidth={2} /> Compile Repository (.JSON)
-                        </button>
-                        <button className="bg-white/5 border border-white/10 text-gray-300 hover:bg-white/10 hover:text-white flex items-center justify-center gap-3 px-8 py-4 rounded-xl font-bold uppercase tracking-wider text-[11px] transition-all shadow-inner">
-                            <FileText size={20} /> Matrix Summary (.PDF)
-                        </button>
-                    </div>
-                </div>
-            </motion.div>
-
-            {/* Access Activity Log */}
-            <motion.div 
-               initial={{ opacity: 0, y: 15 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.4 }}
-               className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-[2.5rem] shadow-[0_0_30px_rgba(0,0,0,0.3)] overflow-hidden"
-            >
-                <div className="p-8 border-b border-white/10 flex items-center gap-4 bg-transparent relative">
-                    <div className="bg-purple-500/20 p-2 rounded-xl text-purple-400 border border-purple-500/30">
-                       <Network size={20} strokeWidth={1.5} />
-                    </div>
-                    <h3 className="font-bold text-xl tracking-tight text-white">Network Audit Trail</h3>
-                </div>
-                <div className="divide-y divide-white/5">
-                    {logEntries.map((log) => (
-                        <div key={log.id} className="p-6 sm:px-8 hover:bg-white/5 transition-colors flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 group">
-                            <div>
-                                <p className="font-bold text-sm text-gray-200 group-hover:text-cyan-400 transition-colors tracking-wide">{log.action}</p>
-                                <p className="text-[11px] text-gray-500 mt-1.5 font-bold uppercase tracking-wider">{log.date} • IP: {log.ip}</p>
-                            </div>
-                            <div className="bg-gray-900/50 border border-white/10 text-gray-400 px-4 py-2 rounded-xl text-[10px] uppercase font-bold tracking-widest shadow-inner">
-                                {log.device}
-                            </div>
-                        </div>
-                    ))}
-                </div>
-                <div className="p-4 bg-transparent text-center border-t border-white/10">
-                    <button className="text-gray-500 hover:text-purple-400 font-bold uppercase tracking-widest text-[10px] transition-colors py-2">Parse Full Access Log</button>
-                </div>
-            </motion.div>
-
-        </div>
+        </PageTransition>
     );
 };
+
+export default PrivacyHub;

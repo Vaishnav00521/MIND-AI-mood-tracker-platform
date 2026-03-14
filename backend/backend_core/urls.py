@@ -23,4 +23,6 @@ urlpatterns = [
     path('api/survey/', include('survey.urls')),
     path('api/mood/', include('mood_engine.urls')),
     path('api/analytics/', include('analytics.urls')),
+    path('api/spotify/', include('spotify_service.urls')),
+    path('api/digital-twin/', include('digital_twin.urls')),
 ]

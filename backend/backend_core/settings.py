@@ -3,17 +3,63 @@ Django settings for backend_core project.
 """
 
 from pathlib import Path
+import os
+from dotenv import load_dotenv
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
-# Quick-start development settings - unsuitable for production
-SECRET_KEY = 'django-insecure-tdv1_&nv(x+lt(&!ik%*uq&*mvage$dx9q&5atf1cs9y+-+ygv'
-DEBUG = True
-ALLOWED_HOSTS = []
+# Load environment variables from .env file for local development
+load_dotenv()
+
+# Try to load secrets from Doppler if available
+# Doppler can be used in two ways:
+# 1. Local dev: Run `doppler run -- python manage.py runserver`
+# 2. Production: Set DOPPLER_TOKEN env var and use doppler.EnvsService.Get
+def load_doppler_secrets():
+    """Load secrets from Doppler if available."""
+    try:
+        import json
+        # Check if Doppler token is available
+        doppler_token = os.environ.get('DOPPLER_TOKEN')
+        if not doppler_token:
+            return False
+            
+        # Use Doppler CLI to get secrets
+        import subprocess
+        result = subprocess.run(
+            ['doppler', 'secrets', 'download', '--json'],
+            capture_output=True,
+            text=True,
+            env={**os.environ, 'DOPPLER_TOKEN': doppler_token}
+        )
+        if result.returncode == 0:
+            secrets = json.loads(result.stdout)
+            for key, value in secrets.items():
+                if value.get('value'):
+                    os.environ[key] = value['value']
+            return True
+    except Exception as e:
+        print(f"Doppler secrets loading failed: {e}")
+    return False
+
+# Try to load Doppler secrets
+load_doppler_secrets()
+
+# Security - Secret Key (Required - fails if not set)
+SECRET_KEY = os.environ.get('SECRET_KEY')
+if not SECRET_KEY:
+    raise ValueError("No SECRET_KEY set for Django application. Please configure in Doppler.")
+
+# Debug mode - should be False in production
+DEBUG = os.environ.get('DEBUG', 'True') == 'True'
+
+# Allowed hosts - comma-separated in production
+ALLOWED_HOSTS = os.environ.get('ALLOWED_HOSTS', 'localhost,127.0.0.1').split(',')
 
 # Application definition
 INSTALLED_APPS = [
+    'daphne',
     'django.contrib.admin',
     'django.contrib.auth',
     'django.contrib.contenttypes',
@@ -36,15 +82,15 @@ INSTALLED_APPS = [
     'analytics.apps.AnalyticsConfig',
     'ai_companion.apps.AiCompanionConfig',
     'audit_ledger.apps.AuditLedgerConfig',
+    'spotify_service.apps.SpotifyServiceConfig',
+    'digital_twin.apps.DigitalTwinConfig',
 ]
 
 ASGI_APPLICATION = 'backend_core.asgi.application'
+# Channels configuration
 CHANNEL_LAYERS = {
-    'default': {
-        'BACKEND': 'channels_redis.core.RedisChannelLayer',
-        'CONFIG': {
-            "hosts": [('127.0.0.1', 6379)],
-        },
+    "default": {
+        "BACKEND": "channels.layers.InMemoryChannelLayer",
     },
 }
 
@@ -83,23 +129,56 @@ from dotenv import load_dotenv
 # Load fallback environment variables for local dev
 load_dotenv()
 
-# Initialize Zero-Trust Azure Key Vault Abstraction
-from .keyvault import vault
+# Database Configuration
+# For Production (Doppler): Set DB_NAME, DB_USER, DB_PASSWORD
+# For Local Dev: Uses SQLite if PostgreSQL isn't available
+DB_USER = os.environ.get('DB_USER')
+DB_PASSWORD = os.environ.get('DB_PASSWORD')
+DB_HOST = os.environ.get('DB_HOST', 'localhost')
+DB_PORT = os.environ.get('DB_PORT', '5432')
+DB_NAME = os.environ.get('DB_NAME')
 
-# Database Connections (Pulled securely from Azure Key Vault when deployed)
-DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.postgresql',
-        'NAME': vault.get_secret('DB_NAME') or os.getenv('DB_NAME'),
-        'USER': vault.get_secret('DB_USER') or os.getenv('DB_USER'),
-        'PASSWORD': vault.get_secret('DB_PASSWORD') or os.getenv('DB_PASSWORD'),
-        'HOST': vault.get_secret('DB_HOST') or os.getenv('DB_HOST'),
-        'PORT': vault.get_secret('DB_PORT', '5432') or os.getenv('DB_PORT', '5432'),
-        'OPTIONS': {
-            'sslmode': 'require',  # Enforce SSL connections across all interfaces
-        },
+# Use PostgreSQL if DB credentials are provided, otherwise SQLite for local dev
+# Also check if PostgreSQL is actually available (fallback to SQLite if not)
+use_postgres = False
+if DB_USER and DB_NAME:
+    # Test if PostgreSQL is available
+    try:
+        import socket
+        sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        sock.settimeout(2)
+        result = sock.connect_ex((DB_HOST, int(DB_PORT) if DB_PORT else 5432))
+        sock.close()
+        if result == 0:
+            use_postgres = True
+    except Exception:
+        pass
+
+if use_postgres:
+    DATABASES = {
+        'default': {
+            'ENGINE': 'django.db.backends.postgresql',
+            'NAME': DB_NAME,
+            'USER': DB_USER,
+            'PASSWORD': DB_PASSWORD,
+            'HOST': DB_HOST,
+            'PORT': DB_PORT,
+            'OPTIONS': {
+                'sslmode': os.environ.get('DB_SSL_MODE', 'disable'),
+            },
+        }
     }
-}
+else:
+    # Fallback to SQLite for local development
+    DATABASES = {
+        'default': {
+            'ENGINE': 'django.db.backends.sqlite3',
+            'NAME': BASE_DIR / 'db.sqlite3',
+        }
+    }
+
+# AI API Keys
+GEMINI_API_KEY = os.environ.get('GEMINI_API_KEY')
 
 # Password validation
 AUTH_PASSWORD_VALIDATORS = [

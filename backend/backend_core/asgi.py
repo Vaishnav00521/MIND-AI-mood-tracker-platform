@@ -6,18 +6,19 @@ django.setup()
 
 from django.core.asgi import get_asgi_application
 from channels.routing import ProtocolTypeRouter, URLRouter
+from channels.auth import AuthMiddlewareStack
 from channels.security.websocket import AllowedHostsOriginValidator
-from .middleware import TokenAuthMiddleware
+from django.urls import path
 
-import ai_companion.routing
+# Import websocket routing from ai_companion
+from ai_companion.routing import websocket_urlpatterns
 
+# Build the application
 application = ProtocolTypeRouter({
     "http": get_asgi_application(),
     "websocket": AllowedHostsOriginValidator(
-        TokenAuthMiddleware(
-            URLRouter(
-                ai_companion.routing.websocket_urlpatterns
-            )
+        AuthMiddlewareStack(
+            URLRouter(websocket_urlpatterns)
         )
     ),
 })

@@ -1,10 +1,13 @@
 from rest_framework import viewsets, mixins, status
 from rest_framework.permissions import IsAuthenticated
-from .models import MoodResult, DailyLog, DailyQuest
+from rest_framework.response import Response
+from rest_framework.views import APIView
 from rest_framework import serializers
 from rest_framework.decorators import action
 from django.utils import timezone
 from datetime import timedelta
+from .models import MoodResult, DailyLog, DailyQuest
+from .ml_predict import predict_mood
 
 class MoodResultSerializer(serializers.ModelSerializer):
     class Meta:
@@ -86,10 +89,6 @@ class DailyQuestViewSet(viewsets.ModelViewSet):
     def perform_create(self, serializer):
         serializer.save(user=self.request.user)
 
-from rest_framework.views import APIView
-from rest_framework.response import Response
-from .ml_predict import predict_mood
-
 class PredictMoodView(APIView):
     """
     POST /api/mood/predict/
@@ -107,3 +106,4 @@ class PredictMoodView(APIView):
             return Response({'predicted_mood_score': prediction})
         except Exception as e:
             return Response({'error': str(e)}, status=400)
+
