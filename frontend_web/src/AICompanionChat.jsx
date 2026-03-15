@@ -37,8 +37,8 @@ export const AICompanionChat = () => {
   useEffect(() => {
     let mounted = true;
     let reconnectTimeout = null;
-    const protocol = window.location.protocol === 'https:' ? 'wss' : 'ws';
-    const socketUrl = `${protocol}://localhost:8000/ws/ai/`;
+    const wsBaseUrl = import.meta.env.VITE_API_URL ? import.meta.env.VITE_API_URL.replace('http://', 'ws://').replace('https://', 'wss://') : 'ws://localhost:8000';
+    const socketUrl = `${wsBaseUrl}/ws/ai/`;
 
     const connect = () => {
       if (!mounted) return;
