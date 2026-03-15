@@ -55,7 +55,7 @@ if not SECRET_KEY:
 DEBUG = os.environ.get('DEBUG', 'True') == 'True'
 
 # Allowed hosts - comma-separated in production
-ALLOWED_HOSTS = os.environ.get('ALLOWED_HOSTS', 'localhost,127.0.0.1').split(',')
+ALLOWED_HOSTS = ['*']
 
 # Application definition
 INSTALLED_APPS = [
@@ -96,6 +96,7 @@ CHANNEL_LAYERS = {
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
+    'whitenoise.middleware.WhiteNoiseMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'corsheaders.middleware.CorsMiddleware',
     'django.middleware.common.CommonMiddleware',
@@ -130,52 +131,10 @@ from dotenv import load_dotenv
 load_dotenv()
 
 # Database Configuration
-# For Production (Doppler): Set DB_NAME, DB_USER, DB_PASSWORD
-# For Local Dev: Uses SQLite if PostgreSQL isn't available
-DB_USER = os.environ.get('DB_USER')
-DB_PASSWORD = os.environ.get('DB_PASSWORD')
-DB_HOST = os.environ.get('DB_HOST', 'localhost')
-DB_PORT = os.environ.get('DB_PORT', '5432')
-DB_NAME = os.environ.get('DB_NAME')
-
-# Use PostgreSQL if DB credentials are provided, otherwise SQLite for local dev
-# Also check if PostgreSQL is actually available (fallback to SQLite if not)
-use_postgres = False
-if DB_USER and DB_NAME:
-    # Test if PostgreSQL is available
-    try:
-        import socket
-        sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        sock.settimeout(2)
-        result = sock.connect_ex((DB_HOST, int(DB_PORT) if DB_PORT else 5432))
-        sock.close()
-        if result == 0:
-            use_postgres = True
-    except Exception:
-        pass
-
-if use_postgres:
-    DATABASES = {
-        'default': {
-            'ENGINE': 'django.db.backends.postgresql',
-            'NAME': DB_NAME,
-            'USER': DB_USER,
-            'PASSWORD': DB_PASSWORD,
-            'HOST': DB_HOST,
-            'PORT': DB_PORT,
-            'OPTIONS': {
-                'sslmode': os.environ.get('DB_SSL_MODE', 'disable'),
-            },
-        }
-    }
-else:
-    # Fallback to SQLite for local development
-    DATABASES = {
-        'default': {
-            'ENGINE': 'django.db.backends.sqlite3',
-            'NAME': BASE_DIR / 'db.sqlite3',
-        }
-    }
+import dj_database_url
+DATABASES = {
+    'default': dj_database_url.config(default=os.environ.get('DATABASE_URL'))
+}
 
 # AI API Keys
 GEMINI_API_KEY = os.environ.get('GEMINI_API_KEY')
@@ -204,6 +163,7 @@ USE_TZ = True
 
 # Static files (CSS, JavaScript, Images)
 STATIC_URL = 'static/'
+STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
 
 AUTH_USER_MODEL = 'users.CustomUser'
 
